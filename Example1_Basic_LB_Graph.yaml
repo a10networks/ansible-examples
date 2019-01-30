@@ -1,0 +1,71 @@
+- hosts: all
+  name: Create basic LB graph with virtual server, service group, members, and health monitors 
+  connection: local
+  tasks:
+  - name: Create a10_health_monitor instance
+    a10_health_monitor:
+      a10_host: "{{ a10_host }}"
+      a10_username: "{{ a10_username }}"
+      a10_password: "{{ a10_password }}"
+      name: tcp_8080
+      method:
+        tcp:
+          method-tcp: 1
+          tcp-port: 80
+      retry: 2
+      interval: 2
+      timeout: 1
+
+  - name: Create service group
+    a10_slb_service_group:
+      a10_host: "{{ a10_host }}"
+      a10_username: "{{ a10_username }}"
+      a10_password: "{{ a10_password }}"
+      name: sg1_80
+      health_check: hm_http
+      protocol: "tcp"
+      lc_method: "service-least-connection"
+
+  - name: Associate member server
+    a10_slb_service_group_member:
+      a10_host: "{{ a10_host }}"
+      a10_username: "{{ a10_username }}"
+      a10_password: "{{ a10_password }}"
+      name: server1
+      host: "10.10.20.2"
+      service_group: sg1_80
+      port: 80
+
+  - name: Associate member server
+    a10_slb_service_group_member:
+      a10_host: "{{ a10_host }}"
+      a10_username: "{{ a10_username }}"
+      a10_password: "{{ a10_password }}"
+      name: server2
+      host: "10.10.20.80"
+      service_group: sg1_80
+      port: 80
+
+  - name: Create virtual server 
+    a10_slb_virtual_server:
+      a10_host: "{{ a10_host }}"
+      a10_username: "{{ a10_username }}"
+      a10_password: "{{ a10_password }}"
+      ip_address: 192.168.42.1
+      netmask: 255.255.255.0
+      name: vs1
+      enable_disable_action: disable-when-all-ports-down
+
+  - name: Create virtual port for vs1 
+    a10_slb_virtual_server_port:
+      a10_host: "{{ a10_host }}"
+      a10_username: "{{ a10_username }}"
+      a10_password: "{{ a10_password }}"
+      state: present
+      virtual_server: vs1
+      protocol: "tcp"
+      port_number: 80
+      service_group: sg1_80
+      ha_conn_mirror: 1
+      auto: 1
+
